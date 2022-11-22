@@ -6,31 +6,63 @@
 #include <string>
 using namespace std;
 
+void MainMenu();
+int GameOverScreen();
+void Setup();
+void Draw();
+void Input();
+void Logic();
+void copyData();
+
 const int width = 30;
 const int height = 30;
 ofstream savefile;
 ifstream saveFile("save.txt");
-string decision;
-bool gameOver, continuegame = 0, launch, restart;
-bool goingleft = 0, goingright = 0, goingup = 0, goingdown = 0;
-int x, y, fruitX, fruitY, score;
-int tailX[100], tailY[100];
-int nTail, choice, gamemode, direction;
+fstream fuckinghighscore("hs.txt");
+bool gameOver, continuegame = 0, launch, restart, savehighscore = 0, foreverstained=0;
+bool goingleft, goingright, goingup, goingdown;
+int x, y, fruitX, fruitY, score, hscore;
+int xc, yc, fruitXc, fruitYc, scorec, nTailc, gamemodec, directionc;
+int tailX[100], tailY[100], tailXc[100], tailYc[100];
+int nTail, choice, gamemode, direction, decision;
 enum eDirection { STOP = 0, LEFT, RIGHT, UP, DOWN };
 eDirection dir;
+clock_t tStart;
 HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
 
-string GameOverScreen()
+int GameOverScreen()
 {
 	system("cls");
 	if (gameOver)
 	{
+		SetConsoleTextAttribute(hConsole, 12);
 		cout << "You lost! Sad :(\n\n";
 	}
-	cout << "Some statistics:\nScore : " << score << "\nTail length : " << nTail << "\nPlaytime : " << endl;
-	std::cout << "\nPlay again or Continue?\nType Yes or No.\n\n";
+	else SetConsoleTextAttribute(hConsole, 3);
+	cout << "Some statistics:\nScore : " << score << "\nTail length : " << nTail << "\nPlaytime : " << (double)(clock() - tStart) / CLOCKS_PER_SEC << "\nHigh score : " << hscore << endl;;
+	cout << "\nPlease press the buttons corresponding to the menu options to access them." << endl;
+	if (gameOver)
+		cout << "\n1 - Start New Game\n2 - Go to Main Menu\n3 - Quit\n\n"; 
+	else cout << "\n0 - Continue\n1 - Start New Game\n2 - Go to Main Menu\n3 - Quit\n\n";
 	cin >> decision;
 	return decision;
+}
+
+void copyData()
+{
+	x = xc;
+	y = yc;
+	fruitX = fruitXc;
+	fruitY = fruitYc;
+	score = scorec;
+	nTail = nTailc;
+	for (int k = 0; k < nTail; k++)
+	{
+		tailX[k] = tailXc[k];
+		tailY[k] = tailYc[k];
+	}
+	gamemode = gamemodec;
+	direction = directionc;
 }
 
 void Setup()
@@ -41,23 +73,44 @@ void Setup()
 	//if the player wants to continue from a savefile, not after losing or quitting
 	if (continuegame) 
 	{
-		saveFile >> x >> y >> fruitX >> fruitY >> score >> nTail;
-		for (int k = 0; k < nTail; k++)
+		SetConsoleTextAttribute(hConsole, 16);
+		fuckinghighscore >> hscore;
+		if (foreverstained)
 		{
-			saveFile >> tailX[k] >> tailY[k];
+			copyData();
 		}
-		saveFile >> gamemode >> direction;
+		else {
+			saveFile >> xc >> yc >> fruitXc >> fruitYc >> scorec >> nTailc;
+			for (int k = 0; k < nTailc; k++)
+			{
+				saveFile >> tailXc[k] >> tailYc[k];
+			}
+			saveFile >> gamemodec >> directionc;
+			copyData();
+		}
 		dir = (eDirection)direction;
 
 		//variable used to fix the game continue bug where it would be an instant loss when using saves
 		launch = true; 
 	}
 	else {
+		SetConsoleTextAttribute(hConsole, 192);
+		fuckinghighscore >> hscore;
 		x = width / 2;
 		y = height / 2;
 		fruitX = rand() % width;
 		fruitY = rand() % height;
 		score = 0;
+		nTail = 0;
+		goingleft = 0; 
+		goingright = 0;
+		goingup = 0; 
+		goingdown = 0;
+		for (int i = 0; i < nTail; i++)
+		{
+			tailX[i] = 0;
+			tailY[i] = 0;
+		}
 	}
 }
 
@@ -106,19 +159,19 @@ void Draw()
 	cout << endl;
 
 	//bottom information
-	cout << "Score:" << score << endl;
+	cout << "Score:" << score << "\nHighscore: " << hscore << endl;
 	cout << "\nPress 'q' to save the game and go to the main menu, and 'x' to quit.";
 
 	//for the first time launch after continuing a game pause it before continuing
 	if (launch)
-		system("pause");
+		system("pause>nul");
 }
 
 void Input()
 {
 	if (_kbhit()) {
 
-		Beep(1000, 100);
+		//Beep(1000, 100); for a nice little beep
 		switch (_getch())
 		{
 		case 'a':
@@ -136,6 +189,8 @@ void Input()
 			goingdown = 0;
 			break;
 
+
+		//repeat for all cases
 		case 'd':
 			if (goingleft) {
 				dir = LEFT;
@@ -147,6 +202,7 @@ void Input()
 			goingup = 0;
 			goingdown = 0;
 			break;
+
 		case 'w':
 			if (goingdown) {
 				dir = DOWN;
@@ -158,6 +214,7 @@ void Input()
 			goingleft = 0;
 			goingright = 0;
 			break;
+
 		case 's':
 			if (goingup) {
 				dir = UP;
@@ -171,18 +228,35 @@ void Input()
 			break;
 
 		case 'q':
+			SetConsoleTextAttribute(hConsole, 10);
+			//open the savefile and remove all contents
 			savefile.open("save.txt", ofstream::out | ofstream::trunc);
+			fuckinghighscore.open("hs.txt", ofstream::out | ofstream::trunc);
+			//then output every single game statistic
+			fuckinghighscore << hscore;
 			savefile << x << " " << y << " " << fruitX << " " << fruitY << " " << score << " " << nTail << " ";
 			for (int k = 0; k < nTail; k++) {
 				savefile << tailX[k] << " " << tailY[k] << " ";
 			}
 			savefile << gamemode << " " << (int)dir;
+			fuckinghighscore.close();
 			savefile.close();
+			savehighscore = 1;
+
+			//at gameover screen get to choose to start over or not
 			decision = GameOverScreen();
-			if (decision == "Yes" || decision == "yes")
+			if (decision == 0)
+			{
+				break;
+			}
+			if (decision == 1)
 			{
 				restart = true;
 				gameOver = false;
+			}
+			else if (decision == 2)
+			{
+				MainMenu();
 			}
 			else {
 				system("cls");
@@ -191,20 +265,25 @@ void Input()
 				gameOver = true; 
 			}
 			break;
+
+
 		case 'x':
-			decision = GameOverScreen();
-			if (decision == "Yes" || decision == "yes")
-			{
-				restart = true;
-				gameOver = false;
-			}
-			else {
+			system("cls");
+			SetConsoleTextAttribute(hConsole, 14);
+			cout << "Are you sure?\nType y for yes or n for no.\n\n";
+			system("pause>nul");
+			char x;
+			cin >> x;
+			if (x == 'y')
+			{ 
 				system("cls");
 				SetConsoleTextAttribute(hConsole, 13);
 				cout << "Thank you for playing my shitty game :D\nPress any key to exit." << endl;
 				gameOver = true;
 			}
-			break;
+			else {
+				launch = true;
+			}
 		}
 	}
 }
@@ -267,11 +346,16 @@ void Logic()
 		if (gamemode == 1)
 		{
 			gameOver = true;
+			foreverstained = true;
 			decision = GameOverScreen();
-			if (decision == "Yes" || decision == "yes")
+			if (decision == 1)
 			{
 				restart = true;
 				gameOver = false;
+			}
+			else if (decision == 2)
+			{
+				MainMenu();
 			}
 			else {
 				system("cls");
@@ -289,16 +373,24 @@ void Logic()
 		if (tailX[i] == x && tailY[i] == y && !launch && !restart)
 		{
 			gameOver = true;
-			decision = GameOverScreen();
-			if (decision == "Yes" || decision == "yes")
+			if (gamemode == 1 || gamemode == 2)
 			{
-				restart = true;
-				gameOver = false;
-			}
-			else {
-				system("cls");
-				SetConsoleTextAttribute(hConsole, 13);
-				cout << "Thank you for playing my shitty game :D\nPress any key to exit." << endl;
+				foreverstained = true;
+				decision = GameOverScreen();
+				if (decision == 1)
+				{
+					restart = true;
+					gameOver = false;
+				}
+				else if (decision == 2)
+				{
+					MainMenu();
+				}
+				else {
+					system("cls");
+					SetConsoleTextAttribute(hConsole, 13);
+					cout << "Thank you for playing my shitty game :D\nPress any key to exit." << endl;
+				}
 			}
 		}
 	
@@ -312,11 +404,8 @@ void Logic()
 	launch = 0;
 }
 
-
-int main() {
-
-	system("mode 100,50");
-	beginning:
+void MainMenu()
+{
 	SetConsoleTextAttribute(hConsole, 11);
 	system("cls");
 	cout << "Hello! Welcome to this shitty Snake copycat made by Annannas :)" << endl;
@@ -325,58 +414,31 @@ int main() {
 	cin >> choice;
 	switch (choice)
 	{
-		case 1:
-		{
-			system("cls");
-			SetConsoleTextAttribute(hConsole, 6);
-			cout << "1 - Normal Mode\n2 - Endless Mode\n3 - Back\n\n";
-			cin >> gamemode;
-			if (gamemode == 1 || gamemode == 2) {
-				continuegame = 0;
-				Setup();
-				while (!gameOver) {
-					Draw();
-					Input();
-					Logic();
-					Sleep(50);
-					if (restart)
-					{
-						Setup();
-						for (int i = 0; i < nTail; i++)
-						{
-							tailX[i] = 0;
-							tailY[i] = 0;
-						}
-						Draw();
-						Input();
-						Logic();
-						Sleep(50);
-						restart = 0;
-					}
-				}
-			}
-			else {
-				goto beginning;
-			}
-			break;
-		}
-		case 2:
-			continuegame = true;
+	case 1:
+	{
+		system("cls");
+		SetConsoleTextAttribute(hConsole, 6);
+		cout << "1 - Normal Mode\n2 - Endless Mode\n3 - Back\n\n";
+		cin >> gamemode;
+		if (gamemode == 1 || gamemode == 2) {
+			continuegame = 0;
 			Setup();
+			tStart = clock();
 			while (!gameOver) {
 				Draw();
 				Input();
 				Logic();
+				if (hscore < score)
+				{
+					hscore = score;
+					fuckinghighscore.open("hs.txt", ofstream::out | ofstream::trunc);
+					fuckinghighscore << hscore;
+					fuckinghighscore.close();
+				}			
 				Sleep(50);
-				continuegame = false;
 				if (restart)
 				{
 					Setup();
-					for (int i = 0; i < nTail; i++)
-					{
-						tailX[i] = 0;
-						tailY[i] = 0;
-					}
 					Draw();
 					Input();
 					Logic();
@@ -384,19 +446,71 @@ int main() {
 					restart = 0;
 				}
 			}
-			break;
-		case 3:
-			system("cls");
-			cout << "In Snake, your main objective is getting a score as high as possible by eating fruits while not\ncolliding with the wall or the Snake's tail.\n\nEndless mode removes the wall boundaries and allows for free roam except for the Snake's tail." << endl;
-			cout << "\nPress any key to go back to the main menu.";
-			system("pause >nul");
-			goto beginning;
-			break;
-		case 4:
-			system("cls");
-			SetConsoleTextAttribute(hConsole, 13);
-			cout << "Thank you for playing my shitty game :D\nPress any key to exit." << endl;
-			break;	
+		}
+		else {
+			MainMenu();
+		}
+		if (!savehighscore)
+		{
+			fuckinghighscore.open("hs.txt", ofstream::out | ofstream::trunc);
+			fuckinghighscore << hscore;
+			fuckinghighscore.close();
+			savehighscore = 1;
+		}
+		break;
 	}
+	case 2:
+		continuegame = true;
+		Setup();
+		tStart = clock();
+		while (!gameOver) {
+			Draw();
+			Input();
+			Logic();
+			if (hscore < score)
+			{
+				hscore = score;
+				fuckinghighscore.open("hs.txt", ofstream::out | ofstream::trunc);
+				fuckinghighscore << hscore;
+			}
+			Sleep(50);
+			continuegame = false;
+			if (restart)
+			{
+				Setup();
+				Draw();
+				Input();
+				Logic();
+				Sleep(50);
+				restart = 0;
+			}
+		}
+		if (!savehighscore)
+		{
+			fuckinghighscore.open("hs.txt", ofstream::out | ofstream::trunc);
+			fuckinghighscore << hscore;
+			fuckinghighscore.close();
+			savehighscore = 1;
+		}
+		break;
+	case 3:
+		system("cls");
+		cout << "In Snake, your main objective is getting a score as high as possible by eating fruits while not\ncolliding with the wall or the Snake's tail.\n\nEndless mode removes the wall boundaries and allows for free roam except for the Snake's tail." << endl;
+		cout << "\nPress any key to go back to the main menu.";
+		system("pause >nul");
+		MainMenu();
+		break;
+	case 4:
+		system("cls");
+		SetConsoleTextAttribute(hConsole, 13);
+		cout << "Thank you for playing my shitty game :D\nPress any key to exit." << endl;
+		break;
+	}
+	savehighscore = 0;
 	system("pause >nul");
+}
+
+int main() {
+	system("mode 100,50");
+	MainMenu();
 }
